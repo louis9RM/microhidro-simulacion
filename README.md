@@ -17,3 +17,8 @@
    ```bash
   uvicorn main:app --reload
    ```
+# 🚀 6. Aplicar fórmulas reales según tu artículo (parte hidráulica + eléctrica
+
+# 🚀 7. Crear el panel web profesional (frontend) para visualizar datos históricos y simulados en tiempo real.
+
+# 🚀 8. Agregar gráficas dinámicas profesionales (Chart.js), tarjetas de indicadores y estilo dashboard.
