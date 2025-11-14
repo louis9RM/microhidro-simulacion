@@ -1,0 +1,9 @@
+# Python virtual environment
+venv/
+
+# Cache files
+__pycache__/
+*.pyc
+
+# Local database (opcional)
+*.db
