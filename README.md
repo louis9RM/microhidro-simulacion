@@ -1,24 +1,63 @@
-# microhidro-simulacion
+# ⚡ Microhidro-Simulacion (Simulador Hidráulico–Eléctrico)
 
-# 🚀 1. Crear el proyecto y el entorno virtual
+Un sistema de simulación académico que modela el comportamiento hidráulico y eléctrico de una microcentral hidroeléctrica. Permite experimentar con caudal, presión, altura hidráulica y eficiencia global para estimar potencia útil generada.
 
-# 🚀 2. Instalar FastAPI + Uvicorn + SQLAlchemy
+Este proyecto combina **FastAPI**, **SQLite**, y un **dashboard web moderno** con **Chart.js** para visualización en tiempo real.
 
-# 🚀 3. Crear el archivo principal del backend
+---
 
-# 🚀 4. Probar el backend
+## 🎯 Objetivos del proyecto
 
-# 🚀 5. Crear la base de datos y el modelo hidráulico realista con fórmulas técnicas .
+- Modelar la cadena energética: agua → turbina → generador → potencia eléctrica.
+- Registrar todas las simulaciones en una base de datos.
+- Visualizar datos en un dashboard moderno estilo industrial/IoT.
+- Mostrar resultados numéricos y tendencias mediante gráficos.
 
-  5.1 — Conectar esta base al backend
+---
 
-  5.2 — Ejecutar y probar
+## 🧩 Arquitectura del Sistema
 
-   ```bash
-  uvicorn main:app --reload
-   ```
-# 🚀 6. Aplicar fórmulas reales según tu artículo (parte hidráulica + eléctrica
+| Módulo | Tecnología | Descripción |
+|--------|------------|-------------|
+| Backend | Python + FastAPI | Realiza cálculos hidráulicos/eléctricos y expone API REST |
+| Base de datos | SQLite + SQLAlchemy | Guarda el historial de simulaciones |
+| Frontend | HTML + CSS + JS + Chart.js | Interfaz gráfica moderna con visualización en tiempo real |
 
-# 🚀 7. Crear el panel web profesional (frontend) para visualizar datos históricos y simulados en tiempo real.
+---
 
-# 🚀 8. Agregar gráficas dinámicas profesionales (Chart.js), tarjetas de indicadores y estilo dashboard.
+## 📌 Fórmulas aplicadas
+
+### **1. Caudal**
+\[
+Q = \text{litros/segundo} / 1000
+\]
+
+### **2. Altura hidráulica equivalente**
+\[
+H = \frac{P \cdot 100000}{\rho g}
+\]
+
+### **3. Potencia hidráulica**
+\[
+P_h = \rho \cdot g \cdot Q \cdot H
+\]
+
+### **4. Potencia eléctrica generada**
+\[
+P_e = P_h \cdot \eta
+\]
+
+---
+
+## 🚀 Cómo ejecutar
+
+```bash
+git clone https://github.com/<TU-USUARIO>/microhidro-simulacion
+cd microhidro-simulacion
+
+# Activar entorno
+python -m venv venv
+.\venv\Scripts\activate
+
+# Iniciar backend
+uvicorn main:app --reload
