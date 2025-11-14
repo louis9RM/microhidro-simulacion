@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from database import RegistroSimulacion, SessionLocal, init_db
 from random import uniform
+from datetime import datetime
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 # Crear app
 app = FastAPI(
@@ -10,10 +16,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# ==== CORS: permitir que el frontend (HTML) llame a la API ====
+# ==== CORS ====
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # para trabajo académico está bien abrir todo
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,38 +36,33 @@ def read_root():
 
 @app.get("/simular")
 def simular():
-    """
-    Simula un punto de operación del sistema hidráulico-eléctrico,
-    calcula potencias y guarda el resultado en la base de datos.
-    """
+    """Simula un punto de operación y lo guarda en la base de datos"""
 
-    # --- Entradas simuladas (parte hidráulica) ---
-    caudal_lps = round(uniform(1.7, 1.9), 2)   # Caudal en L/s
-    presion_bar = round(uniform(3.2, 3.4), 2)  # Presión en bar
+    # Entradas hidráulicas simuladas
+    caudal_lps = round(uniform(1.7, 1.9), 2)   # L/s
+    presion_bar = round(uniform(3.2, 3.4), 2)  # bar
 
-    # --- Constantes físicas ---
-    rho = 1000      # densidad del agua (kg/m³)
-    g = 9.81        # gravedad (m/s²)
+    # Constantes físicas
+    rho = 1000      # kg/m³
+    g = 9.81        # m/s²
 
-    # Convertir caudal a m³/s
+    # Caudal a m³/s
     caudal_m3s = caudal_lps / 1000.0
 
-    # Convertir presión (bar) a altura hidráulica (m)
-    # 1 bar = 100000 Pa  -> H = P / (ρ g)
+    # Presión (bar) → altura (m)
     altura_m = (presion_bar * 100000) / (rho * g)
 
-    # Potencia hidráulica disponible (W)
+    # Potencia hidráulica
     potencia_hidraulica = rho * g * caudal_m3s * altura_m
 
-    # --- Parte eléctrica ---
-    eficiencia_global = 0.40   # eficiencia global turbina + generador + electrónica
+    # Parte eléctrica
+    eficiencia_global = 0.40
     potencia_electrica = potencia_hidraulica * eficiencia_global
 
-    # Redondear para salida
     potencia_hidraulica = round(potencia_hidraulica, 2)
     potencia_electrica = round(potencia_electrica, 2)
 
-    # --- Guardar en base de datos ---
+    # Guardar en BD
     db = SessionLocal()
     registro = RegistroSimulacion(
         caudal_lps=caudal_lps,
@@ -73,7 +74,6 @@ def simular():
     db.commit()
     db.refresh(registro)
 
-    # Respuesta
     return {
         "status": "OK",
         "mensaje": "Simulación profesional realizada",
@@ -90,11 +90,9 @@ def simular():
 
 @app.get("/historial")
 def historial():
-    """
-    Devuelve todo el historial de simulaciones almacenadas.
-    """
+    """Devuelve el historial de simulaciones."""
     db = SessionLocal()
-    registros = db.query(RegistroSimulacion).all()
+    registros = db.query(RegistroSimulacion).order_by(RegistroSimulacion.id).all()
 
     salida = [
         {
@@ -108,3 +106,82 @@ def historial():
     ]
 
     return salida
+
+
+@app.get("/reporte")
+def generar_reporte():
+    """Genera un reporte PDF profesional con resumen y tabla."""
+
+    db = SessionLocal()
+    registros = db.query(RegistroSimulacion).order_by(RegistroSimulacion.id).all()
+
+    file_path = "ReporteSimulacion.pdf"
+
+    doc = SimpleDocTemplate(file_path, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Encabezado
+    titulo = "Reporte de Simulación de Microgeneración Hidroeléctrica"
+    subtitulo = f"Generado el {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"
+
+    elements.append(Paragraph(titulo, styles["Title"]))
+    elements.append(Paragraph(subtitulo, styles["Normal"]))
+    elements.append(Spacer(1, 12))
+
+    # Resumen
+    if registros:
+        total = len(registros)
+        prom_pot = sum(r.potencia_electrica_w for r in registros) / total
+        max_pot = max(r.potencia_electrica_w for r in registros)
+        min_pot = min(r.potencia_electrica_w for r in registros)
+
+        resumen_text = (
+            f"<b>Número de simulaciones:</b> {total}<br/>"
+            f"<b>Potencia eléctrica promedio:</b> {prom_pot:.2f} W<br/>"
+            f"<b>Potencia eléctrica máxima:</b> {max_pot:.2f} W<br/>"
+            f"<b>Potencia eléctrica mínima:</b> {min_pot:.2f} W<br/>"
+        )
+    else:
+        resumen_text = "No se encontraron registros de simulación en la base de datos."
+
+    elements.append(Paragraph("Resumen general", styles["Heading2"]))
+    elements.append(Paragraph(resumen_text, styles["Normal"]))
+    elements.append(Spacer(1, 12))
+
+    # Tabla
+    data = [["ID", "Caudal (L/s)", "Presión (bar)", "P. Hidráulica (W)", "P. Eléctrica (W)"]]
+
+    for r in registros:
+        data.append([
+            r.id,
+            f"{r.caudal_lps:.2f}",
+            f"{r.presion_bar:.2f}",
+            f"{r.potencia_hidraulica_w:.2f}",
+            f"{r.potencia_electrica_w:.2f}",
+        ])
+
+    table = Table(data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#0f172a")),
+        ("TEXTCOLOR", (0, 1), (-1, -1), colors.whitesmoke),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#1f2937")),
+    ]))
+
+    elements.append(Paragraph("Detalle de simulaciones", styles["Heading2"]))
+    elements.append(table)
+
+    # Construir PDF
+    doc.build(elements)
+
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename="ReporteSimulacion.pdf"
+    )
